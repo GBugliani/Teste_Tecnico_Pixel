@@ -105,11 +105,31 @@ public class Worker : BackgroundService
 
     private async Task ProcessMessageAsync(Dictionary<string, object> message, int workerId, CancellationToken stoppingToken)
     {
-        var orderId = GetLong(message, "orderId");
-        var messageId = GetString(message, "messageId");
-        var eventType = GetString(message, "eventType", "UNKNOWN");
-        var occurredAt = GetDateTimeUtc(message, "occurredAt", DateTime.UtcNow);
-        var payload = JsonSerializer.Serialize(message);
+        long orderId;
+        string messageId;
+        string eventType;
+        DateTime occurredAt;
+        string payload;
+
+        try
+        {
+            orderId = GetLong(message, "orderId");
+            messageId = GetString(message, "messageId");
+            eventType = GetString(message, "eventType", "UNKNOWN");
+            occurredAt = GetDateTimeUtc(message, "occurredAt", DateTime.UtcNow);
+            payload = JsonSerializer.Serialize(message);
+        }
+        catch (Exception ex)
+        {
+
+            _logger.LogError(
+                ex,
+                "Malformed message discarded WorkerId={WorkerId} RawPayload={RawPayload}",
+                workerId,
+                JsonSerializer.Serialize(message));
+            return;
+        }
+
         var attempt = 0;
         var startedAt = Stopwatch.StartNew();
 
