@@ -80,6 +80,48 @@ BEGIN
       - Preencher DataCarga
     */
 
+    SET XACT_ABORT ON;
+
+    DECLARE @Referencia DATETIME2(0) = COALESCE(@DataRef, SYSUTCDATETIME());
+    DECLARE @InicioJanela DATETIME2(0) = DATEADD(DAY, -30, @Referencia);
+    DECLARE @DataCarga DATETIME2(0) = SYSUTCDATETIME();
+
+    ;WITH PrimeiraExpedicao AS (
+        SELECT
+            p.PedidoId,
+            p.DataPedido,
+            MIN(e.DataExpedicao) AS DataPrimeiraExpedicao
+        FROM dbo.Pedido AS p
+        INNER JOIN dbo.Expedicao AS e
+            ON e.PedidoId = p.PedidoId
+        GROUP BY
+            p.PedidoId,
+            p.DataPedido
+    ),
+    Fonte AS (
+        SELECT
+            pe.PedidoId,
+            pe.DataPedido,
+            pe.DataPrimeiraExpedicao,
+            DATEDIFF(DAY, pe.DataPedido, pe.DataPrimeiraExpedicao) AS PrazoDias,
+            @DataCarga AS DataCarga
+        FROM PrimeiraExpedicao AS pe
+        WHERE pe.DataPrimeiraExpedicao >= @InicioJanela
+          AND pe.DataPrimeiraExpedicao <= @Referencia
+    )
+    MERGE dbo.Fato_PrazosExpedicao WITH (HOLDLOCK) AS Destino
+    USING Fonte AS Origem
+        ON Destino.PedidoId = Origem.PedidoId
+    WHEN MATCHED THEN
+        UPDATE SET
+            Destino.DataPedido = Origem.DataPedido,
+            Destino.DataPrimeiraExpedicao = Origem.DataPrimeiraExpedicao,
+            Destino.PrazoDias = Origem.PrazoDias,
+            Destino.DataCarga = Origem.DataCarga
+    WHEN NOT MATCHED THEN
+        INSERT (PedidoId, DataPedido, DataPrimeiraExpedicao, PrazoDias, DataCarga)
+        VALUES (Origem.PedidoId, Origem.DataPedido, Origem.DataPrimeiraExpedicao, Origem.PrazoDias, Origem.DataCarga);
+
 END
 GO
 
