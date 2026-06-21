@@ -256,22 +256,6 @@ public class Worker : BackgroundService
         };
     }
 
-    private static long GetLong(Dictionary<string, object> message, string key)
-    {
-        if (!message.TryGetValue(key, out var value) || value is null)
-        {
-            throw new InvalidOperationException($"Required key '{key}' was not found.");
-        }
-
-        return value switch
-        {
-            long longValue => longValue,
-            int intValue => intValue,
-            string stringValue when long.TryParse(stringValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
-            _ => Convert.ToInt64(value, CultureInfo.InvariantCulture)
-        };
-    }
-
     private static DateTime GetDateTimeUtc(Dictionary<string, object> message, string key, DateTime defaultValue)
     {
         if (!message.TryGetValue(key, out var value) || value is null)
