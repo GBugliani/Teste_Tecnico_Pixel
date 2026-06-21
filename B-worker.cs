@@ -9,9 +9,10 @@
 
  Explique em 2–4 linhas (abaixo) como você evita saturar o SQL e garante desligamento limpo.
 
-Uso SemaphoreSlim (não Parallel.ForEach, que é sync e ignora CancellationToken corretamente) para limitar o grau de paralelismo, e cada worker aguarda 
-o slot com WaitAsync(ct). O CancellationToken é propagado a toda chamada assíncrona (OpenAsync(ct), ExecuteNonQueryAsync(ct)) e o IHostedService/BackgroundService 
-trata OperationCanceledException na finalização como sinal de shutdown, não como erro
+Uso Channel<T> (bounded, FullMode = Wait) como fila intermediária entre o produtor e um número fixo de consumidores (MaxConcurrency), o que limita o grau 
+de paralelismo nativamente pois o produtor bloqueia em WriteAsync quando o canal está cheio, sem precisar de SemaphoreSlim. O CancellationToken é propagado a
+toda chamada assíncrona (OpenAsync(ct), ExecuteNonQueryAsync(ct), WaitToReadAsync(ct)) e o IHostedService/BackgroundService trata OperationCanceledException 
+na finalização como sinal de shutdown, não como erro
 */
 
 using System;
